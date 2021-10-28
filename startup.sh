@@ -1,0 +1,3 @@
+cd /app
+stack run
+
