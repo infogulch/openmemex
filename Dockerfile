@@ -5,7 +5,12 @@ FROM ubuntu:20.04 as base
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt update -qq \
-	&& apt -y install curl wget libtesseract-dev tesseract-ocr imagemagick libva-dev snapd chromium-browser libtinfo-dev neovim ripgrep unzip
+	&& apt -y install curl wget libtesseract-dev tesseract-ocr imagemagick libva-dev snapd chromium-browser libtinfo-dev neovim ripgrep unzip ca-certificates
+
+ARG LIBTORCH_VERSION=1.9.0+cpu-1
+RUN echo "deb [trusted=yes] https://github.com/hasktorch/libtorch-binary-for-ci/releases/download/apt ./" > /etc/apt/sources.list.d/libtorch.list
+RUN apt update -qq \
+	&& apt -y install libtorch=$LIBTORCH_VERSION
 
 RUN curl -sSL https://get.haskellstack.org/ | sh \
 	&& stack setup \
@@ -39,12 +44,12 @@ COPY ./experimental /src/experimental
 COPY ./deps /src/deps
 COPY ./server /src/server
 COPY ./shared /src/shared
-COPY ./stack.yaml ./Setup.hs ./package.json ./openmemex.cabal /src
+COPY ./stack.yaml ./Setup.hs ./package.json ./openmemex.cabal ./README.md ./LICENSE /src
 
-ARG LIBTOKENIZERS_TAG=libtokenizers-v0.1
+ARG LIBTOKENIZERS_VERSION=libtokenizers-v0.1
 RUN cd /src \
-	&& curl -L https://github.com/hasktorch/tokenizers/releases/download/libtokenizers-v0.1/libtokenizers-linux.zip >> libtokenizers-linux.zip \
-	&& unzip -p libtokenizers-linux.zip libtokenizers/lib/libtokenizers_haskell.so >>/src/deps/tokenizers/libtokenizers_haskell.so \
+	&& curl -L https://github.com/hasktorch/tokenizers/releases/download/$LIBTOKENIZERS_VERSION/libtokenizers-linux.zip >> libtokenizers-linux.zip \
+	&& unzip -p libtokenizers-linux.zip libtokenizers/lib/libtokenizers_haskell.so >/src/deps/tokenizers/libtokenizers_haskell.so \
 	&& rm libtokenizers-linux.zip
 RUN cd /src && find
 RUN cd /src && stack build cli && stack build openmemex:server --ghc-options="-O2"
@@ -53,13 +58,13 @@ RUN cd /src && stack build cli && stack build openmemex:server --ghc-options="-O
 FROM base as final
 
 RUN mkdir -p /app/frontend
-COPY --from=build-rust /src/frontend/static /app/frontend/static
-COPY --from=build-haskell /src/.stack-work /app/stack-work
-ADD ./startup.sh /app
+COPY --from=build-rust /src/frontend/static /app/static
+COPY --from=build-haskell /src/.stack-work /app/.stack-work
+ADD ./openmemex.cabal ./startup.sh /app
 RUN cd /app; find
 
 EXPOSE 3000
 VOLUME /data
 
-CMD ["/bin/sh", "/app/startup.sh"]
+CMD ["/app/startup.sh"]
 
