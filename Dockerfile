@@ -38,30 +38,29 @@ RUN cd /src/frontend && make build
 ### Build Haskell Backend
 FROM base as build-haskell
 
-COPY ./cli /src/cli
-COPY ./crawler /src/crawler
-COPY ./experimental /src/experimental
-COPY ./deps /src/deps
-COPY ./server /src/server
-COPY ./shared /src/shared
-COPY ./stack.yaml ./Setup.hs ./package.json ./openmemex.cabal ./README.md ./LICENSE /src
+WORKDIR /app
+
+COPY ./cli ./cli
+COPY ./crawler ./crawler
+COPY ./experimental ./experimental
+COPY ./deps ./deps
+COPY ./server ./server
+COPY ./shared ./shared
+COPY ./stack.yaml ./Setup.hs ./package.json ./openmemex.cabal ./README.md ./LICENSE .
 
 ARG LIBTOKENIZERS_VERSION=libtokenizers-v0.1
-RUN cd /src \
-	&& curl -L https://github.com/hasktorch/tokenizers/releases/download/$LIBTOKENIZERS_VERSION/libtokenizers-linux.zip >> libtokenizers-linux.zip \
-	&& unzip -p libtokenizers-linux.zip libtokenizers/lib/libtokenizers_haskell.so >/src/deps/tokenizers/libtokenizers_haskell.so \
+RUN curl -L https://github.com/hasktorch/tokenizers/releases/download/$LIBTOKENIZERS_VERSION/libtokenizers-linux.zip >> libtokenizers-linux.zip \
+	&& unzip -p libtokenizers-linux.zip libtokenizers/lib/libtokenizers_haskell.so >./deps/tokenizers/libtokenizers_haskell.so \
 	&& rm libtokenizers-linux.zip
-RUN cd /src && find
-RUN cd /src && stack build cli && stack build openmemex:server --ghc-options="-O2"
+RUN find
+RUN stack build cli && stack build openmemex:server --ghc-options="-O2"
 
 ### Package together final outputs
-FROM base as final
+FROM build-haskell as final
 
-RUN mkdir -p /app/frontend
 COPY --from=build-rust /src/frontend/static /app/static
-COPY --from=build-haskell /src/.stack-work /app/.stack-work
-ADD ./openmemex.cabal ./startup.sh /app
-RUN cd /app; find
+ADD startup.sh /app
+RUN find
 
 EXPOSE 3000
 VOLUME /data
