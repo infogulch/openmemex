@@ -8,9 +8,8 @@ RUN apt update -qq \
 	&& apt -y install curl wget libtesseract-dev tesseract-ocr imagemagick libva-dev snapd chromium-browser libtinfo-dev neovim ripgrep unzip ca-certificates
 
 ARG LIBTORCH_VERSION=1.9.0+cpu-1
-RUN echo "deb [trusted=yes] https://github.com/hasktorch/libtorch-binary-for-ci/releases/download/apt ./" > /etc/apt/sources.list.d/libtorch.list
-RUN apt update -qq \
-	&& apt -y install libtorch=$LIBTORCH_VERSION
+RUN wget https://github.com/hasktorch/libtorch-binary-for-ci/releases/download/apt/libtorch_1.9.0+cpu-1_amd64.deb
+RUN dpkg -i libtorch_1.9.0+cpu-1_amd64.deb
 
 RUN curl -sSL https://get.haskellstack.org/ | sh \
 	&& stack setup \
@@ -46,7 +45,7 @@ COPY ./experimental ./experimental
 COPY ./deps ./deps
 COPY ./server ./server
 COPY ./shared ./shared
-COPY ./stack.yaml ./Setup.hs ./package.json ./openmemex.cabal ./README.md ./LICENSE .
+COPY ./stack.yaml ./Setup.hs ./package.json ./openmemex.cabal ./README.md ./LICENSE ./
 
 ARG LIBTOKENIZERS_VERSION=libtokenizers-v0.1
 RUN curl -L https://github.com/hasktorch/tokenizers/releases/download/$LIBTOKENIZERS_VERSION/libtokenizers-linux.zip >> libtokenizers-linux.zip \
@@ -66,4 +65,3 @@ EXPOSE 3000
 VOLUME /data
 
 CMD ["/app/startup.sh"]
-
